@@ -50,25 +50,6 @@
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
         }
-        
-        /* Loading spinner animation */
-        .loader {
-            border: 3px solid #f3f3f3;
-            border-radius: 50%;
-            border-top: 3px solid #ffffff;
-            width: 20px;
-            height: 20px;
-            -webkit-animation: spin 1s linear infinite; /* Safari */
-            animation: spin 1s linear infinite;
-            display: inline-block;
-            vertical-align: middle;
-            margin-right: 8px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-100 min-h-screen font-sans text-gray-800 antialiased flex flex-col">
@@ -117,12 +98,10 @@
     <div id="stt-modal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
         <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeSttModal()"></div>
         <div class="bg-[#1A1D2D] rounded-2xl shadow-2xl z-10 w-full max-w-md p-6 m-4 transform transition-all border border-gray-700 font-sans">
-            <!-- Close button -->
             <button onclick="closeSttModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
                 <i class="fa-solid fa-times text-xl"></i>
             </button>
             
-            <!-- Tabs -->
             <div class="flex p-1 bg-[#1A1D2D] border border-gray-700 rounded-2xl mb-6 mt-2">
                 <button id="tab-upload" onclick="switchSttTab('upload')" class="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors flex items-center justify-center gap-2">
                     <i class="fa-solid fa-arrow-up-from-bracket"></i> 上傳檔案
@@ -132,7 +111,6 @@
                 </button>
             </div>
 
-            <!-- Language Select -->
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-300 mb-2">音檔語言</label>
                 <div class="relative">
@@ -155,31 +133,32 @@
                 <div class="text-white text-2xl font-bold font-mono tracking-wider mb-2">
                     <span id="stt-time-current">00:00</span> <span class="text-gray-500 text-lg">/ 2:00</span>
                 </div>
-                <p id="stt-status-text" class="text-gray-400 text-sm">點擊開始錄音</p>
-                <!-- Interim results display -->
+                <p id="stt-status-text" class="text-gray-400 text-sm">點擊開始錄音 (首次需允許麥克風)</p>
                 <p id="stt-interim-text" class="text-[#7B7BFC] text-sm mt-3 text-center h-5 overflow-hidden w-full px-4 truncate"></p>
             </div>
 
-            <!-- Upload Area (Hidden by default) -->
+            <!-- Upload Area -->
             <div id="stt-upload-area" class="hidden bg-[#151723] rounded-2xl border border-gray-700/50 p-8 flex flex-col items-center justify-center mb-6 border-dashed border-2">
-                <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-500 mb-3"></i>
-                <p class="text-gray-300 font-medium mb-1">選擇音訊檔案</p>
-                <p class="text-gray-500 text-xs mb-4 text-center">純前端環境暫不支援離線檔案轉文字<br>建議使用即時錄音功能</p>
-                <input type="file" accept="audio/*" class="hidden" id="stt-file-input">
+                <i class="fa-solid fa-triangle-exclamation text-4xl text-amber-500 mb-3"></i>
+                <p class="text-gray-200 font-medium mb-1">純前端技術限制</p>
+                <p class="text-gray-400 text-xs mb-4 text-center leading-relaxed">
+                    瀏覽器內建的語音引擎**無法讀取上傳的音檔**。<br>
+                    若要辨識錄音檔，必須串接後端 AI 伺服器 (如 Gemini 或 Whisper)。<br>
+                    目前免連網狀態下，請使用「即時錄音」功能。
+                </p>
+                <input type="file" accept="audio/*" class="hidden" id="stt-file-input" onchange="handleFileUpload()">
                 <button onclick="document.getElementById('stt-file-input').click()" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors">
-                    瀏覽檔案
+                    嘗試選取檔案 (將被攔截)
                 </button>
             </div>
 
-            <!-- Privacy Notice -->
             <div class="bg-[#23273B] rounded-xl border border-[#2D3248] p-4 flex gap-3">
                 <i class="fa-solid fa-shield-halved text-[#7B7BFC] mt-0.5 text-lg"></i>
                 <div>
-                    <h4 class="text-gray-200 font-medium text-sm mb-1">你的聲音，只屬於你</h4>
+                    <h4 class="text-gray-200 font-medium text-sm mb-1">本機運算，保障隱私</h4>
                     <ul class="text-gray-400 text-xs space-y-1">
-                        <li>不會用來訓練 AI，不會轉售給廣告商或第三方</li>
-                        <li>只有你可以使用自己的 AI 聲音樣本</li>
-                        <li>全程加密傳輸，以嚴格存取權限保管</li>
+                        <li>語音辨識依靠您的設備與系統原生支援</li>
+                        <li>對手機 (尤其是 iPhone Safari) 可能有限制</li>
                     </ul>
                 </div>
             </div>
@@ -211,7 +190,6 @@
                 
                 <!-- Controls Row -->
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
-                    <!-- Language Selection -->
                     <div>
                         <label for="language" class="block text-sm font-medium text-gray-700 mb-2">語言 (Language)</label>
                         <div class="relative">
@@ -226,25 +204,16 @@
                         </div>
                     </div>
 
-                    <!-- Voice Selection (Custom UI based on image) -->
                     <div class="relative" id="voice-dropdown-container">
                         <label class="block text-sm font-medium text-gray-700 mb-2">聲音 (Voice)</label>
-                        
-                        <!-- Custom Select Button -->
                         <div id="voice-select-btn" class="flex items-center justify-between w-full pl-4 pr-4 py-3 text-base border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border cursor-pointer transition-colors shadow-sm hover:bg-gray-100">
                             <div class="flex items-center gap-3 truncate" id="selected-voice-display">
                                 <span class="text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在載入聲音...</span>
                             </div>
                             <i class="fa-solid fa-chevron-down text-sm text-gray-500 transition-transform duration-200" id="voice-chevron"></i>
                         </div>
-
-                        <!-- Dropdown Menu -->
                         <div id="voice-options-menu" class="absolute z-10 mt-2 w-full bg-white shadow-2xl max-h-80 rounded-2xl py-2 text-base ring-1 ring-black ring-opacity-5 overflow-hidden flex flex-col focus:outline-none sm:text-sm hidden opacity-0 transition-opacity duration-200">
-                            <div id="voice-list-container" class="px-2 overflow-y-auto max-h-60 flex flex-col gap-1 custom-scrollbar">
-                                <!-- Options injected by JS -->
-                            </div>
-                            
-                            <!-- Create Custom Voice Button (from image) -->
+                            <div id="voice-list-container" class="px-2 overflow-y-auto max-h-60 flex flex-col gap-1 custom-scrollbar"></div>
                             <div id="custom-voice-btn-container" class="border-t border-gray-100 mt-2 pt-2 px-2 bg-gray-50/50">
                                 <button class="w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors font-medium" onclick="openCustomVoiceModal()">
                                     <div class="flex items-center gap-3">
@@ -259,7 +228,6 @@
                         </div>
                     </div>
 
-                    <!-- Speed Selection -->
                     <div>
                         <label for="speech-rate" class="block text-sm font-medium text-gray-700 mb-2">語速 (Speed)</label>
                         <div class="relative">
@@ -277,7 +245,6 @@
                     </div>
                 </div>
 
-                <!-- Text Input -->
                 <div class="mb-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
                         <label for="text-input" class="block text-sm font-medium text-gray-700">輸入文字 (Text Input)</label>
@@ -287,7 +254,6 @@
                     </div>
                     <textarea id="text-input" rows="6" class="shadow-sm block w-full p-4 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-base bg-gray-50 resize-y transition-colors" placeholder="請在此輸入您想要轉換為語音的文字..."></textarea>
                     
-                    <!-- Updated Hint Area with Auto-Translate Toggle -->
                     <div class="mt-3 flex flex-col gap-2 text-xs text-gray-500">
                         <div id="cantonese-hint" class="bg-indigo-50/80 p-3 rounded-lg border border-indigo-100 flex items-start gap-2">
                             <i class="fa-solid fa-wand-magic-sparkles text-indigo-500 mt-0.5"></i>
@@ -306,18 +272,14 @@
                     </div>
                 </div>
 
-                <!-- Action Button -->
                 <button id="generate-btn" class="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0">
                     <i class="fa-solid fa-bullhorn mr-2"></i> 開始朗讀 (Speak)
                 </button>
 
-                <!-- Result Area (Hidden by default) -->
                 <div id="result-area" class="mt-8 pt-8 border-t border-gray-200 hidden opacity-0 transition-opacity duration-500">
                     <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-volume-high text-indigo-500"></i> 播放與下載
                     </h3>
-                    
-                    <!-- Controls -->
                     <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-inner flex flex-col sm:flex-row gap-3">
                         <button id="pause-resume-btn" class="flex-1 flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 focus:outline-none transition-colors">
                             <i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續
@@ -327,7 +289,6 @@
                         </button>
                         <button id="download-mp3-btn" class="flex-1 flex items-center justify-center py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors relative group">
                             <i class="fa-solid fa-download mr-2"></i> 下載 MP3
-                            <!-- Tooltip for Download limitation -->
                             <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">
                                 受瀏覽器限制，下載的 MP3 將採用系統預設標準聲音，而非特定自訂角色。
                                 <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
@@ -361,26 +322,21 @@
         const downloadMp3Btn = document.getElementById('download-mp3-btn');
         const speechRateSelect = document.getElementById('speech-rate');
         
-        // Custom Dropdown Elements
         const voiceSelectBtn = document.getElementById('voice-select-btn');
         const voiceOptionsMenu = document.getElementById('voice-options-menu');
         const voiceListContainer = document.getElementById('voice-list-container');
         const selectedVoiceDisplay = document.getElementById('selected-voice-display');
         const voiceChevron = document.getElementById('voice-chevron');
 
-        // State
         let voices = [];
         let synth = window.speechSynthesis;
         let isPaused = false;
         let selectedVoiceObj = null;
         let dropdownOpen = false;
-
-        // Custom Voice State
         let customVoices = JSON.parse(localStorage.getItem('customVoices')) || [];
         let currentPitch = 1;
         let currentRate = 1;
 
-        // Custom Dropdown Toggle Logic
         function toggleDropdown(show) {
             dropdownOpen = show !== undefined ? show : !dropdownOpen;
             if (dropdownOpen) {
@@ -405,7 +361,6 @@
             }
         });
 
-        // Generate gradient class based on voice name to match UI
         function getGradient(name, isCustom = false) {
             if (isCustom) return 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500';
             if (name.includes('Maan') || name.toLowerCase().includes('female') || name.includes('曉曼') || name.includes('Ting-Ting')) 
@@ -417,21 +372,27 @@
             return 'bg-gradient-to-br from-gray-400 to-gray-500';
         }
 
-        // Clean up and standardize voice names for display
         function formatVoiceName(name) {
             let formatted = name.replace('Microsoft ', '').replace(' Online (Natural) - Chinese (Hong Kong)', '');
             if (formatted.includes('HiuMaan')) return 'HiuMaan (Female)';
             if (formatted.includes('HiuGaai')) return 'HiuGaai (Female)';
             if (formatted.includes('WanLung')) return 'WanLung (Male)';
-            
-            // Add gender tags to Mac voices roughly
             if (name === 'Sin-ji' || name === 'Ting-Ting') return name + ' (Female)';
             if (name === 'Danny') return name + ' (Male)';
-            
             return formatted;
         }
 
-        // Populate Voices Dropdown dynamically based on OS
+        let audioUnlocked = false;
+        document.body.addEventListener('touchstart', () => {
+            if (!audioUnlocked) {
+                const silentUtterance = new SpeechSynthesisUtterance('');
+                silentUtterance.volume = 0;
+                synth.speak(silentUtterance);
+                audioUnlocked = true;
+                setTimeout(populateVoiceList, 500); 
+            }
+        }, { once: true });
+
         function populateVoiceList() {
             const selectedLang = languageSelect.value;
             voiceListContainer.innerHTML = '';
@@ -440,13 +401,11 @@
             if (cvBtnContainer) cvBtnContainer.classList.remove('hidden');
             
             voices = synth.getVoices();
-            
             let bestVoiceDiv = null;
             let hiuMaanFound = false;
             
             function createOption(displayName, voiceObj, isCustom = false, config = null) {
                 const gradientClass = getGradient(displayName, isCustom);
-                
                 const optionDiv = document.createElement('div');
                 optionDiv.className = `flex items-center justify-between px-3 py-2.5 cursor-pointer rounded-xl hover:bg-gray-100 transition-colors`;
                 
@@ -459,7 +418,6 @@
                     </div>
                 `;
 
-                // Add delete button for custom voices
                 if (isCustom) {
                     const deleteBtn = document.createElement('button');
                     deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can text-red-400 hover:text-red-600 transition-colors"></i>';
@@ -485,11 +443,9 @@
                         currentRate = 1;
                     }
                     
-                    // Remove highlight from all
                     Array.from(voiceListContainer.children).forEach(child => child.classList.remove('bg-indigo-50'));
                     optionDiv.classList.add('bg-indigo-50');
 
-                    // Update button display
                     selectedVoiceDisplay.innerHTML = `
                         <div class="w-6 h-6 rounded-md shadow-sm flex-shrink-0 ${gradientClass}"></div>
                         <span class="text-gray-800 font-medium truncate">${displayName}</span>
@@ -499,19 +455,25 @@
 
                 voiceListContainer.appendChild(optionDiv);
 
-                // Track the best voice to auto-select
-                if (!bestVoiceDiv) {
-                    bestVoiceDiv = optionDiv;
-                } else if (!hiuMaanFound && (displayName.includes('HiuMaan') || displayName.includes('HiuGaai'))) {
+                if (!bestVoiceDiv) bestVoiceDiv = optionDiv;
+                else if (!hiuMaanFound && (displayName.includes('HiuMaan') || displayName.includes('HiuGaai') || displayName.includes('Sin-ji'))) {
                     bestVoiceDiv = optionDiv;
                     hiuMaanFound = true;
                 }
             }
 
-            // Filter voices by selected language
-            const filteredVoices = voices.filter(voice => voice.lang.includes(selectedLang));
+            let filteredVoices = voices.filter(voice => {
+                const vLang = voice.lang.toLowerCase();
+                if (selectedLang === 'zh-HK') return vLang.includes('zh-hk') || vLang.includes('yue');
+                if (selectedLang === 'zh-CN') return vLang.includes('zh-cn') || vLang.includes('cmn');
+                if (selectedLang === 'en') return vLang.includes('en-');
+                return vLang.includes(selectedLang.toLowerCase());
+            });
+
+            if (filteredVoices.length === 0 && selectedLang.startsWith('zh')) {
+                filteredVoices = voices.filter(voice => voice.lang.toLowerCase().includes('zh'));
+            }
             
-            // 1. Render Custom Voices first
             customVoices.forEach(cv => {
                 const baseVoice = voices.find(v => v.voiceURI === cv.baseVoiceURI);
                 if (baseVoice && baseVoice.lang.includes(selectedLang)) {
@@ -519,9 +481,8 @@
                 }
             });
             
-            // 2. Render Native Voices
             if (filteredVoices.length === 0 && customVoices.length === 0) {
-                selectedVoiceDisplay.innerHTML = `<span class="text-red-500">此設備無可用聲線</span>`;
+                selectedVoiceDisplay.innerHTML = `<span class="text-red-500 text-xs sm:text-sm">無可用聲線 (iOS請至設定>輔助使用>語音下載)</span>`;
                 selectedVoiceObj = null;
             } else {
                 filteredVoices.forEach(voice => {
@@ -529,23 +490,19 @@
                 });
             }
             
-            // Auto-select the most appropriate voice
             if (bestVoiceDiv) bestVoiceDiv.click();
         }
 
-        // Setup voices once they are loaded by the browser
         populateVoiceList();
         if (speechSynthesis.onvoiceschanged !== undefined) {
             speechSynthesis.onvoiceschanged = populateVoiceList;
         }
 
-        // Character count listener
         textInput.addEventListener('input', () => {
             const count = textInput.value.length;
             charCount.textContent = `${count} 字`;
         });
 
-        // Language selection listener
         languageSelect.addEventListener('change', () => {
             if (languageSelect.value === 'zh-HK') {
                 cantoneseHint.classList.remove('hidden');
@@ -555,8 +512,6 @@
             populateVoiceList();
         });
 
-        // --- Frontend Cantonese Dictionary ---
-        // 用於將標準書面語轉換為廣東話口語，改善系統內建引擎的發音
         const cantoneseDict = [
             { zh: '為什麼', jyut: '點解' }, { zh: '爲什麽', jyut: '點解' },
             { zh: '我們', jyut: '我哋' }, { zh: '你們', jyut: '你哋' },
@@ -590,25 +545,22 @@
             { zh: '謝謝', jyut: '多謝' }, { zh: '知道', jyut: '知' }, { zh: '剛才', jyut: '頭先' },
             { zh: '一起', jyut: '一齊' }, { zh: '聊天', jyut: '傾偈' }, 
             { zh: '的', jyut: '嘅' }, { zh: '是', jyut: '係' }, { zh: '了', jyut: '咗' }
-        ].sort((a, b) => b.zh.length - a.zh.length); // 確保長字串優先替換，避免覆蓋錯誤
+        ].sort((a, b) => b.zh.length - a.zh.length);
 
         function convertToCantonese(text) {
             let result = text;
             for (const word of cantoneseDict) {
-                // 使用正則表達式進行全域替換
                 const regex = new RegExp(word.zh, 'g');
                 result = result.replace(regex, word.jyut);
             }
             return result;
         }
 
-        // Custom Voice Logic
         const cvModal = document.getElementById('custom-voice-modal');
         function openCustomVoiceModal() {
             toggleDropdown(false);
             cvModal.classList.remove('hidden');
             
-            // Populate base voices
             const baseSelect = document.getElementById('cv-base-voice');
             baseSelect.innerHTML = '';
             const filtered = voices.filter(v => v.lang.includes(languageSelect.value));
@@ -619,7 +571,6 @@
                 baseSelect.appendChild(opt);
             });
             
-            // Reset fields
             document.getElementById('cv-name').value = '';
             document.getElementById('cv-pitch').value = '1';
             document.getElementById('cv-rate').value = '1';
@@ -658,9 +609,7 @@
             const pitch = parseFloat(document.getElementById('cv-pitch').value);
             const rate = parseFloat(document.getElementById('cv-rate').value);
             
-            if (!baseURI) {
-                return showToast("沒有可用的基礎聲音！", "error");
-            }
+            if (!baseURI) return showToast("沒有可用的基礎聲音！", "error");
 
             customVoices.push({ name, baseVoiceURI: baseURI, pitch, rate });
             localStorage.setItem('customVoices', JSON.stringify(customVoices));
@@ -670,7 +619,6 @@
             populateVoiceList();
         }
 
-        // Toast Notification System
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             
@@ -693,7 +641,7 @@
             toast.className = `transform transition-all duration-300 translate-x-full opacity-0 flex items-center w-full max-w-xs p-4 text-white ${bgClass} rounded-xl shadow-lg`;
             toast.innerHTML = `
                 <i class="fa-solid ${icon} text-xl mr-3"></i>
-                <div class="text-sm font-medium">${message}</div>
+                <div class="text-sm font-medium leading-snug">${message}</div>
                 <button class="ml-auto text-white/70 hover:text-white" onclick="this.parentElement.remove()">
                     <i class="fa-solid fa-times"></i>
                 </button>
@@ -701,23 +649,16 @@
             
             toastContainer.appendChild(toast);
             
-            setTimeout(() => {
-                toast.classList.remove('translate-x-full', 'opacity-0');
-            }, 10);
-
+            setTimeout(() => toast.classList.remove('translate-x-full', 'opacity-0'), 10);
             setTimeout(() => {
                 toast.classList.add('translate-x-full', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
-            }, 4000);
+            }, 5000);
         }
 
-        // MP3 Download Logic (Using free TTS endpoint as fallback)
         downloadMp3Btn.addEventListener('click', () => {
             let text = textInput.value.trim();
-            if (text === '') {
-                showToast("請先輸入要轉換的文字！", "warning");
-                return;
-            }
+            if (text === '') return showToast("請先輸入要轉換的文字！", "warning");
             
             if (languageSelect.value === 'zh-HK' && autoTranslateHk && autoTranslateHk.checked) {
                 text = convertToCantonese(text);
@@ -728,15 +669,10 @@
                 text = text.substring(0, 200);
             }
 
-            // 精確對應 Google TTS 下載 API 的語言代碼
             let ttsLang = languageSelect.value;
-            if (ttsLang === 'zh-HK') {
-                ttsLang = 'yue'; 
-            } else if (ttsLang === 'zh-CN') {
-                ttsLang = 'zh-CN'; 
-            } else if (ttsLang === 'en') {
-                ttsLang = 'en-US'; 
-            }
+            if (ttsLang === 'zh-HK') ttsLang = 'yue'; 
+            else if (ttsLang === 'zh-CN') ttsLang = 'zh-CN'; 
+            else if (ttsLang === 'en') ttsLang = 'en-US'; 
 
             const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${ttsLang}&q=${encodeURIComponent(text)}`;
             
@@ -751,12 +687,8 @@
             showToast("正在下載標準版聲音 MP3！(受限於系統安全，無法匯出特定角色聲音)", "info");
         });
 
-        // Play Logic (Local Only)
         generateBtn.addEventListener('click', () => {
-            if (synth.speaking && !isPaused) {
-                showToast("正在朗讀中，請先停止。", "warning");
-                return;
-            }
+            if (synth.speaking && !isPaused) return showToast("正在朗讀中，請先停止。", "warning");
 
             const text = textInput.value.trim();
             if (text === '') {
@@ -765,12 +697,8 @@
                 return;
             }
 
-            if (!selectedVoiceObj) {
-                showToast("未選擇有效的聲音，或設備不支援。", "error");
-                return;
-            }
+            if (!selectedVoiceObj) return showToast("未選擇有效的聲音，或設備不支援。", "error");
 
-            // Apply Cantonese translation if enabled
             let finalToSpeak = text;
             if (languageSelect.value === 'zh-HK' && autoTranslateHk && autoTranslateHk.checked) {
                 finalToSpeak = convertToCantonese(text);
@@ -780,32 +708,24 @@
             generateLocalAudio(finalToSpeak);
         });
 
-        // --- Local Device API Generation ---
         function generateLocalAudio(text) {
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.voice = selectedVoiceObj;
             utterance.pitch = currentPitch;
             
-            // 結合主介面的語速與自定義聲音的基礎語速 (相乘並限制在 0.1 到 2 之間)
             const mainRate = parseFloat(speechRateSelect.value) || 1;
             utterance.rate = Math.min(Math.max(currentRate * mainRate, 0.1), 2);
             
-            // Event listeners for UI updates
             utterance.onstart = () => {
                 resultArea.classList.remove('hidden');
-                setTimeout(() => {
-                    resultArea.classList.remove('opacity-0');
-                }, 50);
-
+                setTimeout(() => resultArea.classList.remove('opacity-0'), 50);
                 isPaused = false;
                 generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
             };
 
             utterance.onend = () => {
                 resultArea.classList.add('opacity-0');
-                setTimeout(() => {
-                    resultArea.classList.add('hidden');
-                }, 500);
+                setTimeout(() => resultArea.classList.add('hidden'), 500);
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 pauseResumeBtn.innerHTML = `<i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續`;
             };
@@ -816,11 +736,9 @@
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             };
 
-            // Start speaking
             synth.speak(utterance);
         }
 
-        // Pause/Resume Logic
         pauseResumeBtn.addEventListener('click', () => {
             if (synth.speaking) {
                 if (synth.paused) {
@@ -835,23 +753,18 @@
             }
         });
 
-        // Stop Logic
         stopBtn.addEventListener('click', () => {
             if (synth.speaking) {
                 synth.cancel();
                 isPaused = false;
                 pauseResumeBtn.innerHTML = `<i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續`;
-                
-                // Hide controls
                 resultArea.classList.add('opacity-0');
-                setTimeout(() => {
-                    resultArea.classList.add('hidden');
-                }, 500);
+                setTimeout(() => resultArea.classList.add('hidden'), 500);
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
 
-        // --- Speech to Text (Live Recording) Logic ---
+        // --- STT (Speech to Text) Logic ---
         const sttModal = document.getElementById('stt-modal');
         const tabUpload = document.getElementById('tab-upload');
         const tabRecord = document.getElementById('tab-record');
@@ -870,7 +783,6 @@
         let recognition = null;
         let finalSttTranscript = "";
 
-        // Initialize Speech Recognition if supported
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             recognition = new SpeechRecognition();
@@ -893,9 +805,7 @@
                     const secs = (sttSeconds % 60).toString().padStart(2, '0');
                     sttTimeCurrent.innerText = `${mins}:${secs}`;
                     
-                    if (sttSeconds >= 120) { // 2 minutes auto stop
-                        toggleRecording();
-                    }
+                    if (sttSeconds >= 120) toggleRecording();
                 }, 1000);
             };
 
@@ -913,25 +823,24 @@
 
             recognition.onerror = function(event) {
                 console.error("Speech recognition error", event.error);
-                showToast(`語音辨識錯誤: ${event.error}`, 'error');
-                if (isRecording) toggleRecording();
+                if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                    showToast("麥克風權限被拒絕，請在瀏覽器設定中允許取用麥克風。", "error");
+                } else if (event.error === 'network') {
+                    showToast("語音辨識需要網路連線，或者您的設備不支援。", "error");
+                } else {
+                    showToast(`辨識失敗 (${event.error})，iOS Safari 經常阻擋此功能。`, "error");
+                }
+                if (isRecording) toggleRecording(true);
             };
 
             recognition.onend = function() {
-                if (isRecording) {
-                    // unexpected end, try to restart or stop gracefully
-                    toggleRecording(true);
-                }
+                if (isRecording) toggleRecording(true);
                 
-                // Append final text to textarea
                 if (finalSttTranscript) {
                     const currentVal = textInput.value;
                     textInput.value = currentVal ? currentVal + "\n" + finalSttTranscript : finalSttTranscript;
-                    // Trigger input event to update char count
                     textInput.dispatchEvent(new Event('input'));
                     showToast("已將錄音內容轉換為文字", "success");
-                    
-                    // Close modal automatically if we got text
                     setTimeout(closeSttModal, 500);
                 }
             };
@@ -939,10 +848,9 @@
 
         function openSttModal() {
             if (!recognition) {
-                showToast("您的瀏覽器不支援語音辨識功能，請使用 Chrome 或 Edge。", "error");
+                showToast("您的瀏覽器 (如部分 iPhone Safari) 不支援原生語音辨識，建議使用 Chrome。", "error");
                 return;
             }
-            // Auto match language with TTS selection
             const currentTtsLang = languageSelect.value;
             if (currentTtsLang === 'zh-HK') sttLanguage.value = 'yue-Hant-HK';
             else if (currentTtsLang === 'zh-CN') sttLanguage.value = 'cmn-Hans-CN';
@@ -955,14 +863,12 @@
         }
 
         function closeSttModal() {
-            if (isRecording) {
-                toggleRecording();
-            }
+            if (isRecording) toggleRecording(true);
             sttModal.classList.add('hidden');
         }
 
         function switchSttTab(tab) {
-            if (isRecording) toggleRecording(); // Stop recording if switching tabs
+            if (isRecording) toggleRecording(true);
 
             if (tab === 'upload') {
                 tabUpload.classList.replace('text-gray-400', 'text-white');
@@ -984,11 +890,13 @@
         }
 
         function toggleRecording(forceStop = false) {
-            if (!recognition) return;
+            if (!recognition) {
+                showToast("瀏覽器不支援此功能。", "error");
+                return;
+            }
 
             if (isRecording || forceStop) {
-                // Stop recording
-                recognition.stop();
+                try { recognition.stop(); } catch(e) {}
                 isRecording = false;
                 clearInterval(sttTimer);
                 
@@ -996,10 +904,9 @@
                 sttMicBtn.classList.replace('hover:bg-red-600', 'hover:bg-[#6565e5]');
                 sttMicBtn.classList.remove('animate-pulse');
                 sttMicIcon.classList.replace('fa-stop', 'fa-microphone');
-                sttStatusText.innerText = "點擊開始錄音";
-                sttInterimText.innerText = "處理中...";
+                sttStatusText.innerText = "點擊開始錄音 (首次需允許麥克風)";
+                sttInterimText.innerText = finalSttTranscript ? "處理中..." : "";
             } else {
-                // Start recording
                 finalSttTranscript = "";
                 sttInterimText.innerText = "";
                 recognition.lang = sttLanguage.value;
@@ -1007,8 +914,17 @@
                     recognition.start();
                 } catch(e) {
                     console.error(e);
-                    showToast("無法啟動錄音，可能權限遭拒或正在使用中", "error");
+                    showToast("無法啟動錄音，請確認已允許麥克風權限", "error");
                 }
+            }
+        }
+        
+        // 攔截上傳檔案操作，並給予純前端限制的真實提示
+        function handleFileUpload() {
+            const fileInput = document.getElementById('stt-file-input');
+            if (fileInput.files.length > 0) {
+                showToast("【技術限制】純前端瀏覽器原生 API 無法解析上傳的音檔。此功能必須串接後端伺服器 (如 OpenAI Whisper)，請改用即時錄音。", "error");
+                fileInput.value = ""; // 重置選擇
             }
         }
     </script>
