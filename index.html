@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 語音合成助手 (Text to Speech)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for textarea */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #c7c7cc; 
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a6; 
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Loading spinner animation */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 3px solid #ffffff;
+            width: 20px;
+            height: 20px;
+            -webkit-animation: spin 1s linear infinite; /* Safari */
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-100 min-h-screen font-sans text-gray-800 antialiased flex flex-col">
+
+    <!-- Custom Voice Modal -->
+    <div id="custom-voice-modal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeCustomVoiceModal()"></div>
+        <div class="bg-white rounded-2xl shadow-2xl z-10 w-full max-w-md p-6 m-4 transform transition-all">
+            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-sliders text-indigo-500"></i> 創建自定義聲音
+            </h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">聲音名稱</label>
+                    <input type="text" id="cv-name" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" placeholder="例如：小老鼠音、廣東話大叔">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">基礎聲音</label>
+                    <select id="cv-base-voice" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+                        <span>音高 (Pitch)</span> <span id="cv-pitch-val" class="text-indigo-600 font-bold">1.0</span>
+                    </label>
+                    <input type="range" id="cv-pitch" min="0" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1 flex justify-between">
+                        <span>語速 (Rate)</span> <span id="cv-rate-val" class="text-indigo-600 font-bold">1.0</span>
+                    </label>
+                    <input type="range" id="cv-rate" min="0.1" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <div class="mt-6 flex gap-3">
+                <button onclick="testCustomVoice()" class="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-medium transition-colors">
+                    <i class="fa-solid fa-play mr-1"></i> 試聽
+                </button>
+                <button onclick="saveCustomVoice()" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors shadow-lg">
+                    <i class="fa-solid fa-check mr-1"></i> 儲存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
+
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <div class="glass-panel w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-white/40">
+            
+            <!-- Header -->
+            <div class="bg-indigo-600 px-8 py-6 text-white flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-3">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        AI 語音合成助手
+                    </h1>
+                    <p class="text-indigo-100 mt-2 text-sm sm:text-base">將文字轉化為自然流暢的語音，支援廣東話、英文與普通話。</p>
+                </div>
+                <div class="hidden sm:block text-4xl opacity-80">
+                    <i class="fa-solid fa-microphone-lines"></i>
+                </div>
+            </div>
+
+            <!-- Content Body -->
+            <div class="p-6 sm:p-8">
+                
+                <!-- Controls Row -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-6">
+                    <!-- Language Selection -->
+                    <div>
+                        <label for="language" class="block text-sm font-medium text-gray-700 mb-2">語言 (Language)</label>
+                        <div class="relative">
+                            <select id="language" class="block w-full pl-4 pr-10 py-3 text-base border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-xl appearance-none border transition-colors">
+                                <option value="zh-HK">🇭🇰 廣東話 (Cantonese, Traditional)</option>
+                                <option value="en">🇬🇧/🇺🇸 英文 (English)</option>
+                                <option value="zh-CN">🇨🇳 普通話 (Mandarin)</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <i class="fa-solid fa-chevron-down text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Selection (Custom UI based on image) -->
+                    <div class="relative" id="voice-dropdown-container">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">聲音 (Voice)</label>
+                        
+                        <!-- Custom Select Button -->
+                        <div id="voice-select-btn" class="flex items-center justify-between w-full pl-4 pr-4 py-3 text-base border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm rounded-xl border cursor-pointer transition-colors shadow-sm hover:bg-gray-100">
+                            <div class="flex items-center gap-3 truncate" id="selected-voice-display">
+                                <span class="text-gray-500"><i class="fa-solid fa-spinner fa-spin mr-2"></i>正在載入聲音...</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down text-sm text-gray-500 transition-transform duration-200" id="voice-chevron"></i>
+                        </div>
+
+                        <!-- Dropdown Menu -->
+                        <div id="voice-options-menu" class="absolute z-10 mt-2 w-full bg-white shadow-2xl max-h-80 rounded-2xl py-2 text-base ring-1 ring-black ring-opacity-5 overflow-hidden flex flex-col focus:outline-none sm:text-sm hidden opacity-0 transition-opacity duration-200">
+                            <div id="voice-list-container" class="px-2 overflow-y-auto max-h-60 flex flex-col gap-1 custom-scrollbar">
+                                <!-- Options injected by JS -->
+                            </div>
+                            
+                            <!-- Create Custom Voice Button (from image) -->
+                            <div id="custom-voice-btn-container" class="border-t border-gray-100 mt-2 pt-2 px-2 bg-gray-50/50">
+                                <button class="w-full flex items-center justify-between px-3 py-2.5 text-sm text-gray-800 hover:bg-gray-100 rounded-xl cursor-pointer transition-colors font-medium" onclick="openCustomVoiceModal()">
+                                    <div class="flex items-center gap-3">
+                                        <div class="bg-black text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                                            <i class="fa-solid fa-plus"></i>
+                                        </div>
+                                        創建自定義聲音
+                                    </div>
+                                    <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Speed Selection -->
+                    <div>
+                        <label for="speech-rate" class="block text-sm font-medium text-gray-700 mb-2">語速 (Speed)</label>
+                        <div class="relative">
+                            <select id="speech-rate" class="block w-full pl-4 pr-10 py-3 text-base border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-xl appearance-none border transition-colors">
+                                <option value="0.5">0.5x (極慢)</option>
+                                <option value="0.8">0.8x (稍慢)</option>
+                                <option value="1" selected>1.0x (正常)</option>
+                                <option value="1.2">1.2x (稍快)</option>
+                                <option value="1.5">1.5x (極快)</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                                <i class="fa-solid fa-chevron-down text-sm"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Text Input -->
+                <div class="mb-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
+                        <label for="text-input" class="block text-sm font-medium text-gray-700">輸入文字 (Text Input)</label>
+                    </div>
+                    <textarea id="text-input" rows="6" class="shadow-sm block w-full p-4 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-base bg-gray-50 resize-y transition-colors" placeholder="請在此輸入您想要轉換為語音的文字..."></textarea>
+                    
+                    <!-- Updated Hint Area with Auto-Translate Toggle -->
+                    <div class="mt-3 flex flex-col gap-2 text-xs text-gray-500">
+                        <div id="cantonese-hint" class="bg-indigo-50/80 p-3 rounded-lg border border-indigo-100 flex items-start gap-2">
+                            <i class="fa-solid fa-wand-magic-sparkles text-indigo-500 mt-0.5"></i>
+                            <div class="flex-1">
+                                <p class="text-indigo-800 font-medium mb-1">廣東話發音優化 (無需連網)</p>
+                                <label class="flex items-center gap-2 cursor-pointer text-indigo-600">
+                                    <input type="checkbox" id="auto-translate-hk" checked class="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                                    <span>朗讀時，自動將「書面語」(如：我們、今天) 轉換為「廣東話口語」(我哋、今日) 以獲得最自然標準的發音。</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1 px-1">
+                            <span>支援長文本，系統會自動根據選擇的語言進行語氣調整。</span>
+                            <span id="char-count" class="font-medium bg-gray-200 py-0.5 px-2 rounded-md">0 字</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button id="generate-btn" class="w-full flex items-center justify-center py-4 px-6 border border-transparent rounded-xl shadow-lg text-lg font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0">
+                    <i class="fa-solid fa-bullhorn mr-2"></i> 開始朗讀 (Speak)
+                </button>
+
+                <!-- Result Area (Hidden by default) -->
+                <div id="result-area" class="mt-8 pt-8 border-t border-gray-200 hidden opacity-0 transition-opacity duration-500">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high text-indigo-500"></i> 播放與下載
+                    </h3>
+                    
+                    <!-- Controls -->
+                    <div class="bg-gray-50 p-5 rounded-2xl border border-gray-200 shadow-inner flex flex-col sm:flex-row gap-3">
+                        <button id="pause-resume-btn" class="flex-1 flex items-center justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 focus:outline-none transition-colors">
+                            <i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續
+                        </button>
+                        <button id="stop-btn" class="flex-1 flex items-center justify-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition-colors">
+                            <i class="fa-solid fa-stop mr-2"></i> 停止播放
+                        </button>
+                        <button id="download-mp3-btn" class="flex-1 flex items-center justify-center py-3 px-4 rounded-xl shadow-sm text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 transition-colors relative group">
+                            <i class="fa-solid fa-download mr-2"></i> 下載 MP3
+                            <!-- Tooltip for Download limitation -->
+                            <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 pointer-events-none">
+                                受瀏覽器限制，下載的 MP3 將採用系統預設標準聲音，而非特定自訂角色。
+                                <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                            </div>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-4 text-center">注意：純前端無法直接匯出高音質錄音，MP3 下載採用免費基礎語音服務 (每次限 200 字)。</p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="py-6 text-center text-gray-500 text-sm">
+        <p>100% 瀏覽器本機處理 processed natively in the browser</p>
+		<p>Powered by Simon</p>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // DOM Elements
+        const textInput = document.getElementById('text-input');
+        const charCount = document.getElementById('char-count');
+        const generateBtn = document.getElementById('generate-btn');
+        const languageSelect = document.getElementById('language');
+        const resultArea = document.getElementById('result-area');
+        const pauseResumeBtn = document.getElementById('pause-resume-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const toastContainer = document.getElementById('toast-container');
+        const cantoneseHint = document.getElementById('cantonese-hint');
+        const autoTranslateHk = document.getElementById('auto-translate-hk');
+        const downloadMp3Btn = document.getElementById('download-mp3-btn');
+        const speechRateSelect = document.getElementById('speech-rate');
+        
+        // Custom Dropdown Elements
+        const voiceSelectBtn = document.getElementById('voice-select-btn');
+        const voiceOptionsMenu = document.getElementById('voice-options-menu');
+        const voiceListContainer = document.getElementById('voice-list-container');
+        const selectedVoiceDisplay = document.getElementById('selected-voice-display');
+        const voiceChevron = document.getElementById('voice-chevron');
+
+        // State
+        let voices = [];
+        let synth = window.speechSynthesis;
+        let isPaused = false;
+        let selectedVoiceObj = null;
+        let dropdownOpen = false;
+
+        // Custom Voice State
+        let customVoices = JSON.parse(localStorage.getItem('customVoices')) || [];
+        let currentPitch = 1;
+        let currentRate = 1;
+
+        // Custom Dropdown Toggle Logic
+        function toggleDropdown(show) {
+            dropdownOpen = show !== undefined ? show : !dropdownOpen;
+            if (dropdownOpen) {
+                voiceOptionsMenu.classList.remove('hidden');
+                voiceChevron.classList.add('rotate-180');
+                setTimeout(() => voiceOptionsMenu.classList.remove('opacity-0'), 10);
+            } else {
+                voiceOptionsMenu.classList.add('opacity-0');
+                voiceChevron.classList.remove('rotate-180');
+                setTimeout(() => voiceOptionsMenu.classList.add('hidden'), 200);
+            }
+        }
+
+        voiceSelectBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDropdown();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('voice-dropdown-container').contains(e.target)) {
+                toggleDropdown(false);
+            }
+        });
+
+        // Generate gradient class based on voice name to match UI
+        function getGradient(name, isCustom = false) {
+            if (isCustom) return 'bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-500';
+            if (name.includes('Maan') || name.toLowerCase().includes('female') || name.includes('曉曼') || name.includes('Ting-Ting')) 
+                return 'bg-gradient-to-br from-purple-500 via-fuchsia-400 to-orange-300';
+            if (name.includes('Gaai') || name.includes('曉佳')) 
+                return 'bg-gradient-to-br from-blue-500 via-indigo-400 to-cyan-300';
+            if (name.includes('Lung') || name.toLowerCase().includes('male') || name.includes('雲龍') || name.includes('Danny')) 
+                return 'bg-gradient-to-br from-cyan-500 via-blue-500 to-indigo-600';
+            return 'bg-gradient-to-br from-gray-400 to-gray-500';
+        }
+
+        // Clean up and standardize voice names for display
+        function formatVoiceName(name) {
+            let formatted = name.replace('Microsoft ', '').replace(' Online (Natural) - Chinese (Hong Kong)', '');
+            if (formatted.includes('HiuMaan')) return 'HiuMaan (Female)';
+            if (formatted.includes('HiuGaai')) return 'HiuGaai (Female)';
+            if (formatted.includes('WanLung')) return 'WanLung (Male)';
+            
+            // Add gender tags to Mac voices roughly
+            if (name === 'Sin-ji' || name === 'Ting-Ting') return name + ' (Female)';
+            if (name === 'Danny') return name + ' (Male)';
+            
+            return formatted;
+        }
+
+        // Populate Voices Dropdown dynamically based on OS
+        function populateVoiceList() {
+            const selectedLang = languageSelect.value;
+            voiceListContainer.innerHTML = '';
+            
+            const cvBtnContainer = document.getElementById('custom-voice-btn-container');
+            if (cvBtnContainer) cvBtnContainer.classList.remove('hidden');
+            
+            voices = synth.getVoices();
+            
+            let bestVoiceDiv = null;
+            let hiuMaanFound = false;
+            
+            function createOption(displayName, voiceObj, isCustom = false, config = null) {
+                const gradientClass = getGradient(displayName, isCustom);
+                
+                const optionDiv = document.createElement('div');
+                optionDiv.className = `flex items-center justify-between px-3 py-2.5 cursor-pointer rounded-xl hover:bg-gray-100 transition-colors`;
+                
+                let iconHtml = isCustom ? '<i class="fa-solid fa-star text-amber-500 text-xs ml-2"></i>' : '';
+                
+                optionDiv.innerHTML = `
+                    <div class="flex items-center gap-3 truncate">
+                        <div class="w-8 h-8 rounded-lg shadow-inner flex-shrink-0 ${gradientClass} border border-white/20"></div>
+                        <span class="text-gray-800 font-medium truncate text-sm">${displayName} ${iconHtml}</span>
+                    </div>
+                `;
+
+                // Add delete button for custom voices
+                if (isCustom) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.innerHTML = '<i class="fa-solid fa-trash-can text-red-400 hover:text-red-600 transition-colors"></i>';
+                    deleteBtn.className = "p-1 z-10 rounded-md hover:bg-red-50";
+                    deleteBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        customVoices = customVoices.filter(cv => cv.name !== displayName);
+                        localStorage.setItem('customVoices', JSON.stringify(customVoices));
+                        populateVoiceList();
+                    };
+                    optionDiv.appendChild(deleteBtn);
+                }
+
+                optionDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    selectedVoiceObj = voiceObj;
+                    
+                    if (isCustom && config) {
+                        currentPitch = config.pitch;
+                        currentRate = config.rate;
+                    } else {
+                        currentPitch = 1;
+                        currentRate = 1;
+                    }
+                    
+                    // Remove highlight from all
+                    Array.from(voiceListContainer.children).forEach(child => child.classList.remove('bg-indigo-50'));
+                    optionDiv.classList.add('bg-indigo-50');
+
+                    // Update button display
+                    selectedVoiceDisplay.innerHTML = `
+                        <div class="w-6 h-6 rounded-md shadow-sm flex-shrink-0 ${gradientClass}"></div>
+                        <span class="text-gray-800 font-medium truncate">${displayName}</span>
+                    `;
+                    toggleDropdown(false);
+                };
+
+                voiceListContainer.appendChild(optionDiv);
+
+                // Track the best voice to auto-select
+                if (!bestVoiceDiv) {
+                    bestVoiceDiv = optionDiv;
+                } else if (!hiuMaanFound && (displayName.includes('HiuMaan') || displayName.includes('HiuGaai'))) {
+                    bestVoiceDiv = optionDiv;
+                    hiuMaanFound = true;
+                }
+            }
+
+            // Filter voices by selected language
+            const filteredVoices = voices.filter(voice => voice.lang.includes(selectedLang));
+            
+            // 1. Render Custom Voices first
+            customVoices.forEach(cv => {
+                const baseVoice = voices.find(v => v.voiceURI === cv.baseVoiceURI);
+                if (baseVoice && baseVoice.lang.includes(selectedLang)) {
+                    createOption(cv.name, baseVoice, true, cv);
+                }
+            });
+            
+            // 2. Render Native Voices
+            if (filteredVoices.length === 0 && customVoices.length === 0) {
+                selectedVoiceDisplay.innerHTML = `<span class="text-red-500">此設備無可用聲線</span>`;
+                selectedVoiceObj = null;
+            } else {
+                filteredVoices.forEach(voice => {
+                    createOption(formatVoiceName(voice.name), voice, false);
+                });
+            }
+            
+            // Auto-select the most appropriate voice
+            if (bestVoiceDiv) bestVoiceDiv.click();
+        }
+
+        // Setup voices once they are loaded by the browser
+        populateVoiceList();
+        if (speechSynthesis.onvoiceschanged !== undefined) {
+            speechSynthesis.onvoiceschanged = populateVoiceList;
+        }
+
+        // Character count listener
+        textInput.addEventListener('input', () => {
+            const count = textInput.value.length;
+            charCount.textContent = `${count} 字`;
+        });
+
+        // Language selection listener
+        languageSelect.addEventListener('change', () => {
+            if (languageSelect.value === 'zh-HK') {
+                cantoneseHint.classList.remove('hidden');
+            } else {
+                cantoneseHint.classList.add('hidden');
+            }
+            populateVoiceList();
+        });
+
+        // --- Frontend Cantonese Dictionary ---
+        // 用於將標準書面語轉換為廣東話口語，改善系統內建引擎的發音
+        const cantoneseDict = [
+            { zh: '為什麼', jyut: '點解' }, { zh: '爲什麽', jyut: '點解' },
+            { zh: '我們', jyut: '我哋' }, { zh: '你們', jyut: '你哋' },
+            { zh: '他們', jyut: '佢哋' }, { zh: '她們', jyut: '佢哋' }, { zh: '它們', jyut: '佢哋' },
+            { zh: '我的', jyut: '我嘅' }, { zh: '你的', jyut: '你嘅' }, 
+            { zh: '他的', jyut: '佢嘅' }, { zh: '她的', jyut: '佢嘅' },
+            { zh: '誰的', jyut: '邊個嘅' }, { zh: '是的', jyut: '係嘅' }, { zh: '好的', jyut: '好嘅' },
+            { zh: '今天', jyut: '今日' }, { zh: '明天', jyut: '聽日' }, { zh: '昨天', jyut: '尋日' },
+            { zh: '現在', jyut: '依家' }, { zh: '東西', jyut: '嘢' },
+            { zh: '在哪裡', jyut: '喺邊度' }, { zh: '哪裡', jyut: '邊度' }, { zh: '這裡', jyut: '呢度' }, { zh: '那裡', jyut: '嗰度' },
+            { zh: '什麼', jyut: '咩' }, { zh: '什麽', jyut: '咩' }, { zh: '怎麼', jyut: '點樣' },
+            { zh: '沒有', jyut: '冇' }, { zh: '不知道', jyut: '唔知' }, { zh: '真的', jyut: '真係' },
+            { zh: '但是', jyut: '但係' }, { zh: '可是', jyut: '不過' },
+            { zh: '漂亮', jyut: '靚' }, { zh: '喜歡', jyut: '鍾意' },
+            { zh: '睡覺', jyut: '瞓覺' }, { zh: '說話', jyut: '講嘢' },
+            { zh: '告訴', jyut: '話畀' }, { zh: '給', jyut: '畀' },
+            { zh: '這個', jyut: '呢個' }, { zh: '那個', jyut: '嗰個' }, { zh: '哪個', jyut: '邊個' },
+            { zh: '這些', jyut: '呢啲' }, { zh: '那些', jyut: '嗰啲' }, { zh: '哪些', jyut: '邊啲' },
+            { zh: '不用', jyut: '唔使' }, { zh: '不要', jyut: '唔好' }, { zh: '不能', jyut: '唔可以' },
+            { zh: '不會', jyut: '唔識' }, { zh: '不行', jyut: '唔得' }, { zh: '不是', jyut: '唔係' },
+            { zh: '非常', jyut: '好' }, { zh: '很', jyut: '好' }, { zh: '太', jyut: '太' },
+            { zh: '一會兒', jyut: '一陣' }, { zh: '這樣', jyut: '咁樣' },
+            { zh: '回家', jyut: '返屋企' }, { zh: '回來', jyut: '返嚟' }, { zh: '回去', jyut: '返去' },
+            { zh: '拿', jyut: '攞' }, { zh: '找', jyut: '搵' }, { zh: '想', jyut: '諗' }, { zh: '來', jyut: '嚟' },
+            { zh: '他', jyut: '佢' }, { zh: '她', jyut: '佢' }, { zh: '它', jyut: '佢' },
+            { zh: '吃', jyut: '食' }, { zh: '喝', jyut: '飲' }, { zh: '看', jyut: '睇' }, { zh: '在', jyut: '喺' },
+            { zh: '是不是', jyut: '係唔係' }, { zh: '就是', jyut: '就係' }, { zh: '還是', jyut: '定係' },
+            { zh: '的話', jyut: '嘅話' }, { zh: '和', jyut: '同' }, { zh: '跟', jyut: '同' },
+            { zh: '也', jyut: '都' }, { zh: '嗎', jyut: '呀' }, { zh: '吧', jyut: '啦' },
+            { zh: '早上好', jyut: '早晨' }, { zh: '對不起', jyut: '對唔住' }, { zh: '沒關係', jyut: '冇所謂' },
+            { zh: '謝謝', jyut: '多謝' }, { zh: '知道', jyut: '知' }, { zh: '剛才', jyut: '頭先' },
+            { zh: '一起', jyut: '一齊' }, { zh: '聊天', jyut: '傾偈' }, 
+            { zh: '的', jyut: '嘅' }, { zh: '是', jyut: '係' }, { zh: '了', jyut: '咗' }
+        ].sort((a, b) => b.zh.length - a.zh.length); // 確保長字串優先替換，避免覆蓋錯誤
+
+        function convertToCantonese(text) {
+            let result = text;
+            for (const word of cantoneseDict) {
+                // 使用正則表達式進行全域替換
+                const regex = new RegExp(word.zh, 'g');
+                result = result.replace(regex, word.jyut);
+            }
+            return result;
+        }
+
+        // Custom Voice Logic
+        const cvModal = document.getElementById('custom-voice-modal');
+        function openCustomVoiceModal() {
+            toggleDropdown(false);
+            cvModal.classList.remove('hidden');
+            
+            // Populate base voices
+            const baseSelect = document.getElementById('cv-base-voice');
+            baseSelect.innerHTML = '';
+            const filtered = voices.filter(v => v.lang.includes(languageSelect.value));
+            filtered.forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v.voiceURI;
+                opt.textContent = formatVoiceName(v.name);
+                baseSelect.appendChild(opt);
+            });
+            
+            // Reset fields
+            document.getElementById('cv-name').value = '';
+            document.getElementById('cv-pitch').value = '1';
+            document.getElementById('cv-rate').value = '1';
+            document.getElementById('cv-pitch-val').innerText = '1.0';
+            document.getElementById('cv-rate-val').innerText = '1.0';
+        }
+
+        function closeCustomVoiceModal() {
+            cvModal.classList.add('hidden');
+        }
+
+        document.getElementById('cv-pitch').addEventListener('input', e => {
+            document.getElementById('cv-pitch-val').innerText = parseFloat(e.target.value).toFixed(1);
+        });
+        document.getElementById('cv-rate').addEventListener('input', e => {
+            document.getElementById('cv-rate-val').innerText = parseFloat(e.target.value).toFixed(1);
+        });
+
+        function testCustomVoice() {
+            const baseURI = document.getElementById('cv-base-voice').value;
+            const voice = voices.find(v => v.voiceURI === baseURI);
+            if (!voice) return showToast("請選擇基礎聲音", "warning");
+            
+            if (synth.speaking) synth.cancel();
+            
+            const u = new SpeechSynthesisUtterance("這是一個自定義聲音的測試。");
+            u.voice = voice;
+            u.pitch = parseFloat(document.getElementById('cv-pitch').value);
+            u.rate = parseFloat(document.getElementById('cv-rate').value);
+            synth.speak(u);
+        }
+
+        function saveCustomVoice() {
+            const name = document.getElementById('cv-name').value.trim() || '自定義聲音 ' + (customVoices.length + 1);
+            const baseURI = document.getElementById('cv-base-voice').value;
+            const pitch = parseFloat(document.getElementById('cv-pitch').value);
+            const rate = parseFloat(document.getElementById('cv-rate').value);
+            
+            if (!baseURI) {
+                return showToast("沒有可用的基礎聲音！", "error");
+            }
+
+            customVoices.push({ name, baseVoiceURI: baseURI, pitch, rate });
+            localStorage.setItem('customVoices', JSON.stringify(customVoices));
+            
+            showToast("自定義聲音已成功儲存！", "success");
+            closeCustomVoiceModal();
+            populateVoiceList();
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            
+            let bgClass = 'bg-gray-800';
+            let icon = 'fa-info-circle';
+            if (type === 'success') {
+                bgClass = 'bg-emerald-600';
+                icon = 'fa-check-circle';
+            } else if (type === 'error') {
+                bgClass = 'bg-red-600';
+                icon = 'fa-exclamation-circle';
+            } else if (type === 'warning') {
+                bgClass = 'bg-amber-500';
+                icon = 'fa-triangle-exclamation';
+            } else if (type === 'info') {
+                bgClass = 'bg-blue-600';
+                icon = 'fa-circle-info';
+            }
+
+            toast.className = `transform transition-all duration-300 translate-x-full opacity-0 flex items-center w-full max-w-xs p-4 text-white ${bgClass} rounded-xl shadow-lg`;
+            toast.innerHTML = `
+                <i class="fa-solid ${icon} text-xl mr-3"></i>
+                <div class="text-sm font-medium">${message}</div>
+                <button class="ml-auto text-white/70 hover:text-white" onclick="this.parentElement.remove()">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            `;
+            
+            toastContainer.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-x-full', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // MP3 Download Logic (Using free TTS endpoint as fallback)
+        downloadMp3Btn.addEventListener('click', () => {
+            let text = textInput.value.trim();
+            if (text === '') {
+                showToast("請先輸入要轉換的文字！", "warning");
+                return;
+            }
+            
+            if (languageSelect.value === 'zh-HK' && autoTranslateHk && autoTranslateHk.checked) {
+                text = convertToCantonese(text);
+            }
+
+            if (text.length > 200) {
+                showToast("注意：MP3 下載每次最多支援 200 字，目前將為您截斷後下載。", "warning");
+                text = text.substring(0, 200);
+            }
+
+            // 精確對應 Google TTS 下載 API 的語言代碼
+            let ttsLang = languageSelect.value;
+            if (ttsLang === 'zh-HK') {
+                ttsLang = 'yue'; 
+            } else if (ttsLang === 'zh-CN') {
+                ttsLang = 'zh-CN'; 
+            } else if (ttsLang === 'en') {
+                ttsLang = 'en-US'; 
+            }
+
+            const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${ttsLang}&q=${encodeURIComponent(text)}`;
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = "_blank";
+            a.download = "speech.mp3";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showToast("正在下載標準版聲音 MP3！(受限於系統安全，無法匯出特定角色聲音)", "info");
+        });
+
+        // Play Logic (Local Only)
+        generateBtn.addEventListener('click', () => {
+            if (synth.speaking && !isPaused) {
+                showToast("正在朗讀中，請先停止。", "warning");
+                return;
+            }
+
+            const text = textInput.value.trim();
+            if (text === '') {
+                showToast("請先輸入要轉換的文字！", "warning");
+                textInput.focus();
+                return;
+            }
+
+            if (!selectedVoiceObj) {
+                showToast("未選擇有效的聲音，或設備不支援。", "error");
+                return;
+            }
+
+            // Apply Cantonese translation if enabled
+            let finalToSpeak = text;
+            if (languageSelect.value === 'zh-HK' && autoTranslateHk && autoTranslateHk.checked) {
+                finalToSpeak = convertToCantonese(text);
+                showToast("已自動將書面語轉換為廣東話口語發音", "info");
+            }
+
+            generateLocalAudio(finalToSpeak);
+        });
+
+        // --- Local Device API Generation ---
+        function generateLocalAudio(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = selectedVoiceObj;
+            utterance.pitch = currentPitch;
+            
+            // 結合主介面的語速與自定義聲音的基礎語速 (相乘並限制在 0.1 到 2 之間)
+            const mainRate = parseFloat(speechRateSelect.value) || 1;
+            utterance.rate = Math.min(Math.max(currentRate * mainRate, 0.1), 2);
+            
+            // Event listeners for UI updates
+            utterance.onstart = () => {
+                resultArea.classList.remove('hidden');
+                setTimeout(() => {
+                    resultArea.classList.remove('opacity-0');
+                }, 50);
+
+                isPaused = false;
+                generateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            };
+
+            utterance.onend = () => {
+                resultArea.classList.add('opacity-0');
+                setTimeout(() => {
+                    resultArea.classList.add('hidden');
+                }, 500);
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                pauseResumeBtn.innerHTML = `<i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續`;
+            };
+
+            utterance.onerror = (e) => {
+                console.error("Speech synthesis error", e);
+                showToast("語音引擎發生錯誤。", "error");
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            };
+
+            // Start speaking
+            synth.speak(utterance);
+        }
+
+        // Pause/Resume Logic
+        pauseResumeBtn.addEventListener('click', () => {
+            if (synth.speaking) {
+                if (synth.paused) {
+                    synth.resume();
+                    isPaused = false;
+                    pauseResumeBtn.innerHTML = `<i class="fa-solid fa-pause mr-2"></i> 暫停`;
+                } else {
+                    synth.pause();
+                    isPaused = true;
+                    pauseResumeBtn.innerHTML = `<i class="fa-solid fa-play mr-2"></i> 繼續`;
+                }
+            }
+        });
+
+        // Stop Logic
+        stopBtn.addEventListener('click', () => {
+            if (synth.speaking) {
+                synth.cancel();
+                isPaused = false;
+                pauseResumeBtn.innerHTML = `<i class="fa-solid fa-pause mr-2"></i> 暫停 / 繼續`;
+                
+                // Hide controls
+                resultArea.classList.add('opacity-0');
+                setTimeout(() => {
+                    resultArea.classList.add('hidden');
+                }, 500);
+                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        });
+    </script>
+</body>
+</html>
