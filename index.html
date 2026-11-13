@@ -113,6 +113,79 @@
         </div>
     </div>
 
+    <!-- Speech to Text Modal -->
+    <div id="stt-modal" class="fixed inset-0 z-[100] flex items-center justify-center hidden">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeSttModal()"></div>
+        <div class="bg-[#1A1D2D] rounded-2xl shadow-2xl z-10 w-full max-w-md p-6 m-4 transform transition-all border border-gray-700 font-sans">
+            <!-- Close button -->
+            <button onclick="closeSttModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <i class="fa-solid fa-times text-xl"></i>
+            </button>
+            
+            <!-- Tabs -->
+            <div class="flex p-1 bg-[#1A1D2D] border border-gray-700 rounded-2xl mb-6 mt-2">
+                <button id="tab-upload" onclick="switchSttTab('upload')" class="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-gray-200 transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-arrow-up-from-bracket"></i> 上傳檔案
+                </button>
+                <button id="tab-record" onclick="switchSttTab('record')" class="flex-1 py-2.5 bg-[#7B7BFC] text-white rounded-xl text-sm font-medium shadow-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-microphone"></i> 即時錄音
+                </button>
+            </div>
+
+            <!-- Language Select -->
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-300 mb-2">音檔語言</label>
+                <div class="relative">
+                    <select id="stt-language" class="block w-full pl-4 pr-10 py-3 text-base text-gray-200 border-gray-600 bg-[#1A1D2D] focus:outline-none focus:ring-2 focus:ring-[#7B7BFC] sm:text-sm rounded-xl appearance-none border transition-colors cursor-pointer">
+                        <option value="yue-Hant-HK">廣東話</option>
+                        <option value="cmn-Hans-CN">普通話</option>
+                        <option value="en-US">英文</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                        <i class="fa-solid fa-chevron-down text-sm"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Record Area -->
+            <div id="stt-record-area" class="bg-[#151723] rounded-2xl border border-gray-700/50 p-8 flex flex-col items-center justify-center mb-6">
+                <button id="stt-mic-btn" onclick="toggleRecording()" class="w-20 h-20 bg-[#7B7BFC] hover:bg-[#6565e5] rounded-full flex items-center justify-center text-white text-3xl shadow-[0_0_20px_rgba(123,123,252,0.3)] transition-all transform hover:scale-105 active:scale-95 mb-4">
+                    <i class="fa-solid fa-microphone" id="stt-mic-icon"></i>
+                </button>
+                <div class="text-white text-2xl font-bold font-mono tracking-wider mb-2">
+                    <span id="stt-time-current">00:00</span> <span class="text-gray-500 text-lg">/ 2:00</span>
+                </div>
+                <p id="stt-status-text" class="text-gray-400 text-sm">點擊開始錄音</p>
+                <!-- Interim results display -->
+                <p id="stt-interim-text" class="text-[#7B7BFC] text-sm mt-3 text-center h-5 overflow-hidden w-full px-4 truncate"></p>
+            </div>
+
+            <!-- Upload Area (Hidden by default) -->
+            <div id="stt-upload-area" class="hidden bg-[#151723] rounded-2xl border border-gray-700/50 p-8 flex flex-col items-center justify-center mb-6 border-dashed border-2">
+                <i class="fa-solid fa-cloud-arrow-up text-4xl text-gray-500 mb-3"></i>
+                <p class="text-gray-300 font-medium mb-1">選擇音訊檔案</p>
+                <p class="text-gray-500 text-xs mb-4 text-center">純前端環境暫不支援離線檔案轉文字<br>建議使用即時錄音功能</p>
+                <input type="file" accept="audio/*" class="hidden" id="stt-file-input">
+                <button onclick="document.getElementById('stt-file-input').click()" class="bg-gray-700 hover:bg-gray-600 text-white py-2 px-4 rounded-lg text-sm transition-colors">
+                    瀏覽檔案
+                </button>
+            </div>
+
+            <!-- Privacy Notice -->
+            <div class="bg-[#23273B] rounded-xl border border-[#2D3248] p-4 flex gap-3">
+                <i class="fa-solid fa-shield-halved text-[#7B7BFC] mt-0.5 text-lg"></i>
+                <div>
+                    <h4 class="text-gray-200 font-medium text-sm mb-1">你的聲音，只屬於你</h4>
+                    <ul class="text-gray-400 text-xs space-y-1">
+                        <li>不會用來訓練 AI，不會轉售給廣告商或第三方</li>
+                        <li>只有你可以使用自己的 AI 聲音樣本</li>
+                        <li>全程加密傳輸，以嚴格存取權限保管</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3"></div>
 
@@ -208,6 +281,9 @@
                 <div class="mb-6">
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-2 gap-2">
                         <label for="text-input" class="block text-sm font-medium text-gray-700">輸入文字 (Text Input)</label>
+                        <button onclick="openSttModal()" class="text-xs bg-[#7B7BFC]/10 text-[#7B7BFC] hover:bg-[#7B7BFC]/20 border border-[#7B7BFC]/30 py-1.5 px-3 rounded-lg font-medium transition-colors flex items-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-microphone"></i> 語音轉文字 (錄音)
+                        </button>
                     </div>
                     <textarea id="text-input" rows="6" class="shadow-sm block w-full p-4 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-base bg-gray-50 resize-y transition-colors" placeholder="請在此輸入您想要轉換為語音的文字..."></textarea>
                     
@@ -266,8 +342,7 @@
     </main>
 
     <footer class="py-6 text-center text-gray-500 text-sm">
-        <p>100% 瀏覽器本機處理 processed natively in the browser</p>
-		<p>Powered by Simon</p>
+        <p>Powered by Web Speech API (建議使用 Edge 瀏覽器以獲得最佳廣東話女聲 HiuMaan)</p>
     </footer>
 
     <!-- JavaScript Logic -->
@@ -775,6 +850,167 @@
                 generateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             }
         });
+
+        // --- Speech to Text (Live Recording) Logic ---
+        const sttModal = document.getElementById('stt-modal');
+        const tabUpload = document.getElementById('tab-upload');
+        const tabRecord = document.getElementById('tab-record');
+        const sttUploadArea = document.getElementById('stt-upload-area');
+        const sttRecordArea = document.getElementById('stt-record-area');
+        const sttMicBtn = document.getElementById('stt-mic-btn');
+        const sttMicIcon = document.getElementById('stt-mic-icon');
+        const sttTimeCurrent = document.getElementById('stt-time-current');
+        const sttStatusText = document.getElementById('stt-status-text');
+        const sttInterimText = document.getElementById('stt-interim-text');
+        const sttLanguage = document.getElementById('stt-language');
+
+        let isRecording = false;
+        let sttTimer = null;
+        let sttSeconds = 0;
+        let recognition = null;
+        let finalSttTranscript = "";
+
+        // Initialize Speech Recognition if supported
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = function() {
+                isRecording = true;
+                sttMicBtn.classList.replace('bg-[#7B7BFC]', 'bg-red-500');
+                sttMicBtn.classList.replace('hover:bg-[#6565e5]', 'hover:bg-red-600');
+                sttMicBtn.classList.add('animate-pulse');
+                sttMicIcon.classList.replace('fa-microphone', 'fa-stop');
+                sttStatusText.innerText = "錄音中... 點擊停止";
+                
+                sttSeconds = 0;
+                sttTimeCurrent.innerText = "00:00";
+                sttTimer = setInterval(() => {
+                    sttSeconds++;
+                    const mins = Math.floor(sttSeconds / 60).toString().padStart(2, '0');
+                    const secs = (sttSeconds % 60).toString().padStart(2, '0');
+                    sttTimeCurrent.innerText = `${mins}:${secs}`;
+                    
+                    if (sttSeconds >= 120) { // 2 minutes auto stop
+                        toggleRecording();
+                    }
+                }, 1000);
+            };
+
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalSttTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                sttInterimText.innerText = interimTranscript;
+            };
+
+            recognition.onerror = function(event) {
+                console.error("Speech recognition error", event.error);
+                showToast(`語音辨識錯誤: ${event.error}`, 'error');
+                if (isRecording) toggleRecording();
+            };
+
+            recognition.onend = function() {
+                if (isRecording) {
+                    // unexpected end, try to restart or stop gracefully
+                    toggleRecording(true);
+                }
+                
+                // Append final text to textarea
+                if (finalSttTranscript) {
+                    const currentVal = textInput.value;
+                    textInput.value = currentVal ? currentVal + "\n" + finalSttTranscript : finalSttTranscript;
+                    // Trigger input event to update char count
+                    textInput.dispatchEvent(new Event('input'));
+                    showToast("已將錄音內容轉換為文字", "success");
+                    
+                    // Close modal automatically if we got text
+                    setTimeout(closeSttModal, 500);
+                }
+            };
+        }
+
+        function openSttModal() {
+            if (!recognition) {
+                showToast("您的瀏覽器不支援語音辨識功能，請使用 Chrome 或 Edge。", "error");
+                return;
+            }
+            // Auto match language with TTS selection
+            const currentTtsLang = languageSelect.value;
+            if (currentTtsLang === 'zh-HK') sttLanguage.value = 'yue-Hant-HK';
+            else if (currentTtsLang === 'zh-CN') sttLanguage.value = 'cmn-Hans-CN';
+            else if (currentTtsLang === 'en') sttLanguage.value = 'en-US';
+
+            finalSttTranscript = "";
+            sttInterimText.innerText = "";
+            sttTimeCurrent.innerText = "00:00";
+            sttModal.classList.remove('hidden');
+        }
+
+        function closeSttModal() {
+            if (isRecording) {
+                toggleRecording();
+            }
+            sttModal.classList.add('hidden');
+        }
+
+        function switchSttTab(tab) {
+            if (isRecording) toggleRecording(); // Stop recording if switching tabs
+
+            if (tab === 'upload') {
+                tabUpload.classList.replace('text-gray-400', 'text-white');
+                tabUpload.classList.replace('bg-transparent', 'bg-[#7B7BFC]');
+                tabRecord.classList.replace('bg-[#7B7BFC]', 'bg-transparent');
+                tabRecord.classList.replace('text-white', 'text-gray-400');
+                
+                sttRecordArea.classList.add('hidden');
+                sttUploadArea.classList.remove('hidden');
+            } else {
+                tabRecord.classList.replace('text-gray-400', 'text-white');
+                tabRecord.classList.replace('bg-transparent', 'bg-[#7B7BFC]');
+                tabUpload.classList.replace('bg-[#7B7BFC]', 'bg-transparent');
+                tabUpload.classList.replace('text-white', 'text-gray-400');
+                
+                sttUploadArea.classList.add('hidden');
+                sttRecordArea.classList.remove('hidden');
+            }
+        }
+
+        function toggleRecording(forceStop = false) {
+            if (!recognition) return;
+
+            if (isRecording || forceStop) {
+                // Stop recording
+                recognition.stop();
+                isRecording = false;
+                clearInterval(sttTimer);
+                
+                sttMicBtn.classList.replace('bg-red-500', 'bg-[#7B7BFC]');
+                sttMicBtn.classList.replace('hover:bg-red-600', 'hover:bg-[#6565e5]');
+                sttMicBtn.classList.remove('animate-pulse');
+                sttMicIcon.classList.replace('fa-stop', 'fa-microphone');
+                sttStatusText.innerText = "點擊開始錄音";
+                sttInterimText.innerText = "處理中...";
+            } else {
+                // Start recording
+                finalSttTranscript = "";
+                sttInterimText.innerText = "";
+                recognition.lang = sttLanguage.value;
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.error(e);
+                    showToast("無法啟動錄音，可能權限遭拒或正在使用中", "error");
+                }
+            }
+        }
     </script>
 </body>
 </html>
